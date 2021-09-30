@@ -1,0 +1,36 @@
+# ModernApiApp:
+# https://aka.ms/yaml
+name: $(Date:yyyyMMdd)$(Rev:.r)
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-2019'
+stages:
+- stage: 'Build'
+  displayName: 'Build and Test Customer UI and Deploy to ACR'
+  jobs:
+   - job: Build
+     steps:
+      - task: DotNetCoreCLI@2
+        displayName: 'Execute Customer L1 Unit Test(s)'
+        inputs:
+         command: 'test'
+         projects: '$(Build.SourcesDirectory)/ModernUIApp.Tests/ModernUIApp.Tests.csproj'
+         testRunTitle: 'Execute Customer Unit Test'
+         publishTestResults: true
+         arguments: '/p:CollectCoverage=true /p:CoverletOutputFormat=cobertura'
+      - task: PublishCodeCoverageResults@1
+        displayName: 'Publish Cobertura Code Coverage Results'
+        inputs:
+         codeCoverageTool: 'Cobertura'
+         summaryFileLocation: '**/*coverage.cobertura.xml'
+      - task: Docker@2
+        inputs:
+         containerRegistry: 'lodAcr'
+         repository: 'modernui'
+         command: 'buildAndPush'
+         Dockerfile: '$(Build.SourcesDirectory)/ModernUIApp.Dockerfile'
+         tags: |
+           $(Build.BuildNumber)
+           Latest
